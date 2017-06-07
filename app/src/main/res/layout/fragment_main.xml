@@ -1,0 +1,12 @@
+<com.lyzon.ui.lilyplayer.menuswipe.MenuSwipe
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/menuSwipe"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <include layout="@layout/play_list_view"/>
+
+    <include layout="@layout/player_main_view"/>
+
+
+</com.lyzon.ui.lilyplayer.menuswipe.MenuSwipe>

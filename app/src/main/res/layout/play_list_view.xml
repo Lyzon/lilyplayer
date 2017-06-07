@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.lyzon.ui.lilyplayer.menuswipe.MenuView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="220dp"
+    android:layout_height="match_parent">
+
+   <TextView
+       android:background="@color/contentPrimary"
+       android:id="@+id/topText"
+       android:paddingLeft="8dp"
+       android:paddingBottom="3dp"
+       android:gravity="bottom"
+       android:text="歌曲列表"
+       android:textSize="15sp"
+       android:textColor="@color/colorPrimary"
+       android:textStyle="bold"
+       android:layout_width="match_parent"
+       android:layout_height="48dp"
+       />
+
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/music_list_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+    </android.support.v7.widget.RecyclerView>
+
+
+</com.lyzon.ui.lilyplayer.menuswipe.MenuView>
