@@ -18,11 +18,13 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
 import android.support.v4.view.PagerAdapter;
+import android.support.v4.view.ViewPager;
 import android.support.v7.graphics.Palette;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
@@ -53,7 +55,7 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
     //展示音乐列表的RecyclerView
     private RecyclerView musicListRecyclerView;
 
-    private CoverViewPager coverViewPager;
+    private ViewPager coverViewPager;
 
     //歌曲名和歌手名
     private TextView title;
@@ -112,7 +114,14 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
         musicListRecyclerView.setAdapter(adapter = new MusicAdapter());
         adapter.setOnClickListener(this);
 
-        coverViewPager = (CoverViewPager) view.findViewById(R.id.viewpager);
+        coverViewPager = (ViewPager) view.findViewById(R.id.viewpager);
+        coverViewPager.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                //禁止它滑动
+                return true;
+            }
+        });
         coverViewPager.setAdapter(coverPagerAdapter = new CoverPagerAdapter());
 
         menuSwipe = (MenuSwipe) view.findViewById(R.id.menuSwipe);
