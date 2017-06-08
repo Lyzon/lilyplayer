@@ -6,13 +6,13 @@
     android:background="@color/contentPrimary"
     android:orientation="vertical">
 
-    <com.lyzon.ui.lilyplayer.main.CoverViewPager
+    <android.support.v4.view.ViewPager
         android:id="@+id/viewpager"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="6">
 
-    </com.lyzon.ui.lilyplayer.main.CoverViewPager>
+    </android.support.v4.view.ViewPager>
 
     <RelativeLayout
         android:layout_width="match_parent"
