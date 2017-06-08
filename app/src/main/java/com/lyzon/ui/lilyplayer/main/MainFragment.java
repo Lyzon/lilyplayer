@@ -10,7 +10,6 @@ import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.provider.MediaStore;
 import android.support.v4.app.Fragment;
@@ -19,7 +18,6 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
 import android.support.v4.view.PagerAdapter;
-import android.support.v4.view.ViewPager;
 import android.support.v7.graphics.Palette;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -47,14 +45,15 @@ import java.util.List;
 /**
  * A simple {@link Fragment} subclass.
  */
-public class MainFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor> , ViewPager.OnPageChangeListener ,OnRecyclerViewClickListener ,View.OnClickListener{
+public class MainFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor>  ,OnRecyclerViewClickListener ,View.OnClickListener ,PlayerView{
+
 
     //本地音乐列表
    private List<Music> musicList = new ArrayList<>();
     //展示音乐列表的RecyclerView
     private RecyclerView musicListRecyclerView;
 
-    private ViewPager coverViewPager;
+    private CoverViewPager coverViewPager;
 
     //歌曲名和歌手名
     private TextView title;
@@ -62,7 +61,6 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
 
     //用于改变背景色
     private View rootView;
-    private View topText;
 
     //三个按钮
     private ImageButton buttonNext;
@@ -87,24 +85,13 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
         // Required empty public constructor
     }
 
-    Handler handler = new Handler();
-
-    private Runnable runnable = new Runnable(){
-        //这个方法是运行在UI线程中的
-        @Override
-        public void run() {
-            updateSeekBar();
-            handler.postDelayed(this, 1000);// 1000ms后执行this，即runable
-        }
-    };
-
     private ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             Log.e("service","service connected");
             mPlayService = (PlayService.PlayBinder) service;
-            mPlayService.play(musicList.get(coverViewPager.getCurrentItem()),false);
-            handler.postDelayed(runnable, 1000);
+            mPlayService.setPlayView(MainFragment.this);
+            mPlayService.play(musicList.get(getPlayingPosition()),false);
         }
 
         @Override
@@ -113,16 +100,6 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
             mPlayService = null;
         }
     };
-
-    private void updateSeekBar(){
-        Log.e("sssss","update");
-        int position = mPlayService.getCurrentPosition();
-        if(!seekBarOnFocus)
-            seekBar.setProgress(position);
-
-        if(mPlayService.isComplete())
-            coverViewPager.setCurrentItem(coverViewPager.getCurrentItem()+1);
-    }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -135,13 +112,11 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
         musicListRecyclerView.setAdapter(adapter = new MusicAdapter());
         adapter.setOnClickListener(this);
 
-        coverViewPager = (ViewPager) view.findViewById(R.id.viewpager);
+        coverViewPager = (CoverViewPager) view.findViewById(R.id.viewpager);
         coverViewPager.setAdapter(coverPagerAdapter = new CoverPagerAdapter());
-        coverViewPager.addOnPageChangeListener(this);
 
         menuSwipe = (MenuSwipe) view.findViewById(R.id.menuSwipe);
         rootView = view.findViewById(R.id.play_root_view);
-        topText = view.findViewById(R.id.topText);
         title = (TextView) view.findViewById(R.id.title);
         artist = (TextView) view.findViewById(R.id.artist);
 
@@ -177,8 +152,8 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 seekBarOnFocus = false;
-                mPlayService.seekTo(seekBar.getProgress());
-                setButtonPlaySrc();
+                if(mPlayService != null)
+                    mPlayService.seekTo(seekBar.getProgress());
             }
         });
 
@@ -189,77 +164,96 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
 
 
     /**
-     *音乐列表项点击监听
+     * 播放音乐
+     * @param position 当前音乐在列表中的位置
      */
-    @Override
-    public void onItemClick(int position) {
-        if(mPlayService!=null && coverViewPager.getCurrentItem() != position)
-            coverViewPager.setCurrentItem(position,false);
-
-        menuSwipe.closeMenu();
-    }
-
-    @Override
-    public void onClick(View v) {
-        int i = coverViewPager.getCurrentItem();
-        switch (v.getId()){
-            case R.id.next:
-                if(coverViewPager.getCurrentItem() == musicList.size()-1)
-                    coverViewPager.setCurrentItem(0);
-                else
-                    coverViewPager.setCurrentItem(++i);
-                break;
-            case R.id.previous:
-                if(coverViewPager.getCurrentItem() == 0)
-                    coverViewPager.setCurrentItem(musicList.size()-1);
-                else
-                    coverViewPager.setCurrentItem(--i);
-                break;
-            case R.id.play:
-                mPlayService.playOrPause();
-                setButtonPlaySrc();
-                break;
-            default:
-                break;
+    private void play(int position){
+        if(musicList.size() >= position && position >= 0){
+            coverViewPager.setCurrentItem(position);
+            seekBar.setProgress(0);
+            setMusicInfo(position);
+            mPlayService.play(musicList.get(position),true);
+            adapter.notifyDataSetChanged();
         }
     }
 
-    private void setButtonPlaySrc(){
-        if(mPlayService.isPlaying())
+
+    /**
+     * 播放状态改变，用于设置play/pause按钮的图片资源
+     * @param isPlaying
+     */
+    @Override
+    public void playStateChange(boolean isPlaying) {
+        if(isPlaying)
             buttonPlay.setImageDrawable(ContextCompat.getDrawable(getContext(),R.drawable.ic_pause_circle_outline_white_48dp));
         else
             buttonPlay.setImageDrawable(ContextCompat.getDrawable(getContext(),R.drawable.ic_play_circle_outline_white_48dp));
     }
 
     /**
-     * 播放音乐
-     * @param position 当前音乐在列表中的位置
+     * 一首歌曲播放完毕时回调，这里调用播放服务播放下一首
      */
-    private void play(int position){
-        seekBar.setProgress(0);
-        setMusicInfo(position);
-        mPlayService.play(musicList.get(position),true);
-        setButtonPlaySrc();
+    @Override
+    public void onComplete() {
+        //播放当前位置的下一首
+        int i = getPlayingPosition();
+
+        if(getPlayingPosition() == musicList.size()-1)
+            play(0);
+        else
+            play(++i);
     }
 
-    public  String formatTime(int time) {
-        String min = time / (1000 * 60) + "";
-        String sec = time % (1000 * 60) + "";
-        if (min.length() < 2) {
-            min = "0" + time / (1000 * 60) + "";
-        } else {
-            min = time / (1000 * 60) + "";
+    /**
+     * 每秒调用一次，更新seek bar
+     */
+    @Override
+    public void progressUpdate(int progress) {
+        Log.e("seek bar","update");
+        if(!seekBarOnFocus)
+            seekBar.setProgress(progress);
+    }
+
+    /**
+     *音乐列表项点击监听
+     */
+    @Override
+    public void onItemClick(int position) {
+        if(mPlayService!=null && getPlayingPosition() != position){
+            coverViewPager.setCurrentItem(position,false);
+            play(position);
         }
-        if (sec.length() == 4) {
-            sec = "0" + (time % (1000 * 60)) + "";
-        } else if (sec.length() == 3) {
-            sec = "00" + (time % (1000 * 60)) + "";
-        } else if (sec.length() == 2) {
-            sec = "000" + (time % (1000 * 60)) + "";
-        } else if (sec.length() == 1) {
-            sec = "0000" + (time % (1000 * 60)) + "";
+
+        menuSwipe.closeMenu();
+    }
+
+    @Override
+    public void onClick(View v) {
+        int i = getPlayingPosition();
+        switch (v.getId()){
+            case R.id.next:
+                if(getPlayingPosition() == musicList.size()-1)
+                    play(0);
+                else
+                    play(++i);
+                break;
+            case R.id.previous:
+                if(getPlayingPosition() == 0)
+                    play(musicList.size()-1);
+                else
+                    play(--i);
+                break;
+            case R.id.play:
+                if(mPlayService!=null)
+                    mPlayService.playOrPause();
+                break;
+            default:
+                break;
         }
-        return min + ":" + sec.trim().substring(0, 2);
+    }
+
+    private int getPlayingPosition(){
+        return coverViewPager.getCurrentItem();
     }
 
     @Override
@@ -315,11 +309,13 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
      *展示音乐列表
      */
     public void showMusicList(){
-        Collections.shuffle(musicList);
-        adapter.notifyItemRangeChanged(0,musicList.size());
-        coverPagerAdapter.notifyDataSetChanged();
-        bindPlayService();
-        setMusicInfo(0);
+        if(musicList.size() > 0){
+            Collections.shuffle(musicList);
+            coverPagerAdapter.notifyDataSetChanged();
+            adapter.notifyItemRangeChanged(0,musicList.size());
+            bindPlayService();
+            setMusicInfo(0);
+        }
     }
 
 
@@ -368,7 +364,7 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
      */
     private void setBackgroundColor() {
 
-        ImageView view = (ImageView)coverViewPager.findViewWithTag(coverViewPager.getCurrentItem());
+        ImageView view = (ImageView)coverViewPager.findViewWithTag(getPlayingPosition());
 
         if(view == null)
             return;
@@ -386,15 +382,12 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
                     Palette.Swatch darkVibrantSwatch = palette.getDarkVibrantSwatch();
                     if (darkVibrantSwatch != null) {
                         rootView.setBackgroundColor(darkVibrantSwatch.getRgb());
-                        topText.setBackgroundColor(darkVibrantSwatch.getRgb());
                         return;
                     }
                     if(vibrantSwatch != null){
                         rootView.setBackgroundColor(vibrantSwatch.getRgb());
-                        topText.setBackgroundColor(vibrantSwatch.getRgb());
                     }else{
                         rootView.setBackgroundColor(ContextCompat.getColor(getContext(),R.color.contentPrimary));
-                        topText.setBackgroundColor(ContextCompat.getColor(getContext(),R.color.contentPrimary));
                     }
 
                 }
@@ -402,24 +395,12 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
         }
     }
 
-    @Override
-    public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
-
-    }
-    @Override
-    public void onPageSelected(int position) {
-        play(position);
-    }
-    @Override
-    public void onPageScrollStateChanged(int state) {
-
-    }
 
     @Override
     public void onDestroyView(){
         super.onDestroyView();
-        handler.removeCallbacks(runnable);
-        getActivity().unbindService(connection);
+        if(mPlayService != null)
+            getActivity().unbindService(connection);
     }
 
     class CoverPagerAdapter extends PagerAdapter {
@@ -443,7 +424,9 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
         public Object instantiateItem(ViewGroup container, int position) {
             View view = LayoutInflater.from(getContext()).inflate(R.layout.cover_item,null);
             ImageView cover = (ImageView) view.findViewById(R.id.cover_iv);
-            Picasso.with(getContext()).load(new File(musicList.get(position).albumCoverUrl)).into(cover);
+            String imgUrl  = musicList.get(position).albumCoverUrl;
+            if(imgUrl != null)
+            Picasso.with(getContext()).load(new File(imgUrl)).into(cover);
             cover.setTag(position);
             container.addView(view);
             return view;
@@ -468,6 +451,10 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
             Music music = musicList.get(position);
             holder.title.setText(music.title);
             holder.author.setText(music.artist);
+            if(getPlayingPosition() == position)
+                holder.playingIv.setVisibility(View.VISIBLE);
+            else
+                holder.playingIv.setVisibility(View.GONE);
         }
 
         @Override
@@ -483,11 +470,13 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
 
             private TextView title;
             private TextView author;
+            private View playingIv;
 
             public MusicListViewHolder(View view) {
                 super(view);
                 title = (TextView) view.findViewById(R.id.music_title);
                 author = (TextView) view.findViewById(R.id.music_author);
+                playingIv = view.findViewById(R.id.playingIv);
                 view.setOnClickListener(this);
             }
 
@@ -498,6 +487,31 @@ public class MainFragment extends Fragment implements LoaderManager.LoaderCallba
             }
 
         }
+    }
+
+    /**
+     * 将毫秒时间转化为 mm:ss 格式
+     * @param time
+     * @return
+     */
+    public  String formatTime(int time) {
+        String min = time / (1000 * 60) + "";
+        String sec = time % (1000 * 60) + "";
+        if (min.length() < 2) {
+            min = "0" + time / (1000 * 60) + "";
+        } else {
+            min = time / (1000 * 60) + "";
+        }
+        if (sec.length() == 4) {
+            sec = "0" + (time % (1000 * 60)) + "";
+        } else if (sec.length() == 3) {
+            sec = "00" + (time % (1000 * 60)) + "";
+        } else if (sec.length() == 2) {
+            sec = "000" + (time % (1000 * 60)) + "";
+        } else if (sec.length() == 1) {
+            sec = "0000" + (time % (1000 * 60)) + "";
+        }
+        return min + ":" + sec.trim().substring(0, 2);
     }
 
 }

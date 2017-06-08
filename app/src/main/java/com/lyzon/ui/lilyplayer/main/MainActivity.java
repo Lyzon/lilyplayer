@@ -4,19 +4,22 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.KeyEvent;
 import android.view.View;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.lyzon.ui.lilyplayer.R;
 
 public class MainActivity extends AppCompatActivity {
+
+    private boolean isExit = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,6 +69,31 @@ public class MainActivity extends AppCompatActivity {
         }
 
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+
+        if ((keyCode == KeyEvent.KEYCODE_BACK)) {
+            exitApp();
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+
+    private void exitApp() {
+        if (!isExit) {
+            isExit = true;
+            Toast.makeText(this, "再按一次退出", Toast.LENGTH_SHORT).show();
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    isExit = false;
+                }
+            }, 1500);
+        } else
+            finish();
     }
 
 }

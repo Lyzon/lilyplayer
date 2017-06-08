@@ -4,6 +4,6 @@
     <color name="colorPrimaryDark">#F9F9F9</color>
     <color name="item_divider">#EEEEEE</color>
     <color name="contentPrimary">#5b5b5b</color>
-    <color name="colorAccent">#FCFCFC</color>
+    <color name="colorAccent">#f57b0f</color>
     <color name="textColorSecondary">#888888</color>
 </resources>
